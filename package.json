@@ -1,0 +1,46 @@
+{
+  "name": "fastify-net-acl",
+  "version": "0.0.1",
+  "description": "Fastify plugin that restricts access according to IP address/subnet allow and block lists.",
+  "main": "index.js",
+  "engines": {
+    "npm": ">=15.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zbo14/fastify-net-acl.git"
+  },
+  "engine-strict": true,
+  "scripts": {
+    "lint": "standard",
+    "test": "NODE_ENV=test tap test.js"
+  },
+  "keywords": [
+    "acl",
+    "allow list",
+    "block list",
+    "cidr",
+    "fastify",
+    "fastify plugin",
+    "ip",
+    "ip address",
+    "ip range",
+    "net",
+    "plugin",
+    "subnet"
+  ],
+  "author": "Zachary Balder",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/zbo14/fastify-net-acl/issues"
+  },
+  "homepage": "https://github.com/zbo14/fastify-net-acl#readme",
+  "devDependencies": {
+    "fastify": "^3.22.0",
+    "standard": "^16.0.3",
+    "tap": "^15.0.10"
+  },
+  "dependencies": {
+    "fastify-plugin": "^3.0.0"
+  }
+}
