@@ -4,28 +4,24 @@ const http = require('http')
 const net = require('net')
 const fp = require('fastify-plugin')
 
-function createList (addrs) {
-  addrs = [].concat(addrs).filter(Boolean)
+const getRules = rules => [].concat(rules).filter(Boolean)
 
-  if (!addrs.length) {
-    throw new Error('Address list is empty')
-  }
-
+function createList (rules) {
   const list = new net.BlockList()
 
-  for (const addr of addrs) {
-    const [, ip, slash] = addr.match(/^(.*?)(?:\/(\d+))?$/)
-    let type = net.isIP(ip)
+  for (const rule of rules) {
+    const [, ip, slash] = rule.match(/^(.*?)(?:\/(\d+))?$/)
+    let ipType = net.isIP(ip)
 
-    if (!type) {
+    if (!ipType) {
       throw new Error('Invalid IP address: ' + ip)
     }
 
-    type = 'ipv' + type
+    ipType = 'ipv' + ipType
 
     slash
-      ? list.addSubnet(ip, +slash, type)
-      : list.addAddress(ip, type)
+      ? list.addSubnet(ip, +slash, ipType)
+      : list.addAddress(ip, ipType)
   }
 
   return list
@@ -49,11 +45,16 @@ async function plugin (fastify, options) {
     throw new Error('Expected options.errorMessage to be a string')
   }
 
-  if (options.allowList) {
-    const allowList = createList(options.allowList)
+  const allowRules = getRules(options.allowList)
+  const blockRules = getRules(options.blockList)
+
+  if (allowRules.length && blockRules.length) {
+    throw new Error('Cannot specify options.allowList and options.blockList')
+  } else if (allowRules.length) {
+    const allowList = createList(allowRules)
     fastify.decorate('allowList', allowList)
-  } else if (options.blockList) {
-    const blockList = createList(options.blockList)
+  } else if (blockRules.length) {
+    const blockList = createList(blockRules)
     fastify.decorate('blockList', blockList)
   } else {
     throw new Error('Must specify options.allowList or options.blockList')
@@ -68,11 +69,14 @@ async function plugin (fastify, options) {
       done(new Error(errorMessage))
     }
 
+    const ipType = 'ipv' + net.isIP(request.ip)
+
     if (fastify.allowList) {
-      const allowed = fastify.allowList.check(request.ip)
+      const allowed = fastify.allowList.check(request.ip, ipType)
+
       if (!allowed) return block()
     } else {
-      const blocked = fastify.blockList.check(request.ip)
+      const blocked = fastify.blockList.check(request.ip, ipType)
 
       if (blocked) return block()
     }

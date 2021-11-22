@@ -10,7 +10,9 @@ Fastify plugin that restricts access according to IP address/subnet allow and bl
 
 ## Usage
 
-TODO
+```js
+
+```
 
 ## Test
 
