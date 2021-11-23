@@ -6,7 +6,7 @@ const fp = require('fastify-plugin')
 
 const getRules = rules => [].concat(rules).filter(Boolean)
 
-function createList (rules) {
+const createList = rules => {
   const list = new net.BlockList()
 
   for (const rule of rules) {
@@ -63,7 +63,7 @@ async function plugin (fastify, options) {
   const errorCode = options.errorCode || 403
   const errorMessage = options.errorMessage || http.STATUS_CODES[errorCode]
 
-  fastify.addHook('onRequest', (request, reply, done) => {
+  const checkRequest = (request, reply, done) => {
     const block = () => {
       reply.code(errorCode)
       done(new Error(errorMessage))
@@ -82,7 +82,15 @@ async function plugin (fastify, options) {
     }
 
     done()
-  })
+  }
+
+  const isGlobal = typeof options.global === 'boolean'
+    ? options.global
+    : true
+
+  isGlobal
+    ? fastify.addHook('onRequest', checkRequest)
+    : fastify.decorate('checkRequest', checkRequest)
 }
 
 module.exports = fp(plugin, {
