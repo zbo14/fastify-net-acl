@@ -30,9 +30,31 @@ t.test('throws if no list provided', async t => {
   }
 })
 
+t.test('throws if list isn\'t array or object literal', async t => {
+  try {
+    await t.context.fastify.register(fastifyNetAcl, { allowList: new Set() })
+    throw new Error('Should throw')
+  } catch ({ message }) {
+    t.equal(message, 'Expected list config to be an array or object literal')
+  }
+})
+
 t.test('throws if empty list provided', async t => {
   try {
     await t.context.fastify.register(fastifyNetAcl, { allowList: [] })
+    throw new Error('Should throw')
+  } catch ({ message }) {
+    t.equal(message, 'Must specify options.allowList or options.blockList')
+  }
+})
+
+t.test('throws if empty inner list provided', async t => {
+  try {
+    await t.context.fastify.register(fastifyNetAcl, {
+      allowList: { foo: [] },
+      global: false
+    })
+
     throw new Error('Should throw')
   } catch ({ message }) {
     t.equal(message, 'Must specify options.allowList or options.blockList')
@@ -45,6 +67,38 @@ t.test('throws if no list provided', async t => {
     throw new Error('Should throw')
   } catch ({ message }) {
     t.equal(message, 'Must specify options.allowList or options.blockList')
+  }
+})
+
+t.test('throws if both lists specified globally', async t => {
+  try {
+    await t.context.fastify.register(fastifyNetAcl, {
+      allowList: ['127.0.0.1'],
+      blockList: ['127.0.0.2']
+    })
+  } catch ({ message }) {
+    t.equal(message, 'Cannot specify global options.allowList and options.blockList')
+  }
+})
+
+t.test('throws if list is object and global isn\'t false', async t => {
+  try {
+    await t.context.fastify.register(fastifyNetAcl, {
+      allowList: { idk: ['127.0.0.1'] }
+    })
+  } catch ({ message }) {
+    t.equal(message, 'Expected list config to an array when global')
+  }
+})
+
+t.test('throws if list is object with value that isn\'t array', async t => {
+  try {
+    await t.context.fastify.register(fastifyNetAcl, {
+      allowList: { idk: {} },
+      global: false
+    })
+  } catch ({ message }) {
+    t.equal(message, 'Expected inner list config to be an array')
   }
 })
 
@@ -81,7 +135,6 @@ t.test('rejects IPv4 not on allow list', async t => {
 
   t.equal(resp.statusCode, 403)
   t.equal((await resp.json()).message, 'Forbidden')
-  t.end()
 })
 
 t.test('rejects IPv6 not on allow list', async t => {
@@ -97,7 +150,6 @@ t.test('rejects IPv6 not on allow list', async t => {
 
   t.equal(resp.statusCode, 403)
   t.equal((await resp.json()).message, 'Forbidden')
-  t.end()
 })
 
 t.test('rejects IPv4 on block list', async t => {
@@ -111,7 +163,6 @@ t.test('rejects IPv4 on block list', async t => {
   })
 
   t.equal(resp.statusCode, 403)
-  t.end()
 })
 
 t.test('rejects IPv6 on block list', async t => {
@@ -126,7 +177,6 @@ t.test('rejects IPv6 on block list', async t => {
   })
 
   t.equal(resp.statusCode, 403)
-  t.end()
 })
 
 t.test('rejects IPv4 in subnet block list', async t => {
@@ -140,7 +190,6 @@ t.test('rejects IPv4 in subnet block list', async t => {
   })
 
   t.equal(resp.statusCode, 403)
-  t.end()
 })
 
 t.test('rejects IPv6 in subnet block list', async t => {
@@ -155,7 +204,6 @@ t.test('rejects IPv6 in subnet block list', async t => {
   })
 
   t.equal(resp.statusCode, 403)
-  t.end()
 })
 
 t.test('accepts IPv4 on allow list', async t => {
@@ -169,7 +217,6 @@ t.test('accepts IPv4 on allow list', async t => {
   })
 
   t.equal(resp.statusCode, 404)
-  t.end()
 })
 
 t.test('accepts IPv6 on allow list', async t => {
@@ -184,7 +231,6 @@ t.test('accepts IPv6 on allow list', async t => {
   })
 
   t.equal(resp.statusCode, 404)
-  t.end()
 })
 
 t.test('accepts IPv4 in subnet on allow list', async t => {
@@ -198,7 +244,6 @@ t.test('accepts IPv4 in subnet on allow list', async t => {
   })
 
   t.equal(resp.statusCode, 404)
-  t.end()
 })
 
 t.test('accepts IPv6 in subnet on allow list', async t => {
@@ -213,7 +258,6 @@ t.test('accepts IPv6 in subnet on allow list', async t => {
   })
 
   t.equal(resp.statusCode, 404)
-  t.end()
 })
 
 t.test('rejects IPv4 not in subnet on allow list', async t => {
@@ -227,7 +271,6 @@ t.test('rejects IPv4 not in subnet on allow list', async t => {
   })
 
   t.equal(resp.statusCode, 403)
-  t.end()
 })
 
 t.test('rejects IPv6 not in subnet on allow list', async t => {
@@ -242,7 +285,6 @@ t.test('rejects IPv6 not in subnet on allow list', async t => {
   })
 
   t.equal(resp.statusCode, 403)
-  t.end()
 })
 
 t.test('rejects IP with custom error code and message', async t => {
@@ -259,18 +301,6 @@ t.test('rejects IP with custom error code and message', async t => {
 
   t.equal(resp.statusCode, 401)
   t.equal((await resp.json()).message, 'what are you doing?')
-  t.end()
-})
-
-t.test('throws if both allowList and blockList specified', async t => {
-  try {
-    await t.context.fastify.register(fastifyNetAcl, {
-      allowList: ['127.0.0.1'],
-      blockList: ['127.0.0.2']
-    })
-  } catch ({ message }) {
-    t.equal(message, 'Cannot specify options.allowList and options.blockList')
-  }
 })
 
 t.test('accepts IPv4 not on block list', async t => {
@@ -285,7 +315,6 @@ t.test('accepts IPv4 not on block list', async t => {
   })
 
   t.equal(resp.statusCode, 404)
-  t.end()
 })
 
 t.test('accepts IPv6 not on block list', async t => {
@@ -300,7 +329,6 @@ t.test('accepts IPv6 not on block list', async t => {
   })
 
   t.equal(resp.statusCode, 404)
-  t.end()
 })
 
 t.test('blocks IPv4 on specific route', async t => {
@@ -309,7 +337,7 @@ t.test('blocks IPv4 on specific route', async t => {
     global: false
   })
 
-  const onRequest = t.context.fastify.checkRequest
+  const onRequest = t.context.fastify.createNetAclRequestHandler()
 
   t.context.fastify.get('/foo', { onRequest }, (req, reply) => {
     reply.send({})
@@ -322,7 +350,6 @@ t.test('blocks IPv4 on specific route', async t => {
 
   t.equal(resp.statusCode, 403)
   t.equal((await resp.json()).message, 'Forbidden')
-  t.end()
 })
 
 t.test('doesn\'t block IPv4 on other route', async t => {
@@ -331,7 +358,7 @@ t.test('doesn\'t block IPv4 on other route', async t => {
     global: false
   })
 
-  const onRequest = t.context.fastify.checkRequest
+  const onRequest = t.context.fastify.createNetAclRequestHandler()
 
   t.context.fastify.get('/foo', { onRequest }, (req, reply) => {
     reply.send({})
@@ -348,5 +375,73 @@ t.test('doesn\'t block IPv4 on other route', async t => {
 
   t.equal(resp.statusCode, 200)
   t.same(await resp.json(), {})
-  t.end()
+})
+
+t.test('allows IP on 1 route and blocks IP on another', async t => {
+  await t.context.fastify.register(fastifyNetAcl, {
+    allowList: {
+      foo: '1.2.3.4'
+    },
+
+    blockList: {
+      bar: '1.2.3.5'
+    },
+
+    global: false
+  })
+
+  {
+    const onRequest = t.context.fastify.createNetAclRequestHandler('foo')
+
+    t.context.fastify.get('/foo', { onRequest }, (req, reply) => {
+      reply.send({})
+    })
+  }
+
+  {
+    const onRequest = t.context.fastify.createNetAclRequestHandler('bar')
+
+    t.context.fastify.get('/bar', { onRequest }, (req, reply) => {
+      reply.send({})
+    })
+  }
+
+  {
+    const resp = await t.context.fastify.inject({
+      method: 'GET',
+      url: '/foo',
+      remoteAddress: '1.2.3.4'
+    })
+
+    t.equal(resp.statusCode, 200)
+    t.same(await resp.json(), {})
+  }
+
+  {
+    const resp = await t.context.fastify.inject({
+      method: 'GET',
+      url: '/bar',
+      remoteAddress: '1.2.3.5'
+    })
+
+    t.equal(resp.statusCode, 403)
+    t.equal((await resp.json()).message, 'Forbidden')
+  }
+})
+
+t.test('throws if it can\'t find list', async t => {
+  await t.context.fastify.register(fastifyNetAcl, {
+    allowList: {
+      foo: '1.2.3.4'
+    },
+
+    global: false
+  })
+
+  try {
+    t.context.fastify.createNetAclRequestHandler('bar')
+    throw new Error('Should throw')
+  } catch ({ message }) {
+    t.equal(message, 'Couldn\'t find list: bar')
+  }
 })

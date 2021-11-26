@@ -4,27 +4,63 @@ const http = require('http')
 const net = require('net')
 const fp = require('fastify-plugin')
 
-const getRules = rules => [].concat(rules).filter(Boolean)
+const createList = (config, isGlobal, mustBeArray = false) => {
+  if (!config) return null
 
-const createList = rules => {
-  const list = new net.BlockList()
-
-  for (const rule of rules) {
-    const [, ip, slash] = rule.match(/^(.*?)(?:\/(\d+))?$/)
-    let ipType = net.isIP(ip)
-
-    if (!ipType) {
-      throw new Error('Invalid IP address: ' + ip)
-    }
-
-    ipType = 'ipv' + ipType
-
-    slash
-      ? list.addSubnet(ip, +slash, ipType)
-      : list.addAddress(ip, ipType)
+  if (typeof config === 'string') {
+    config = [config]
   }
 
-  return list
+  if (Array.isArray(config)) {
+    const rules = [].concat(config).filter(Boolean)
+
+    if (!rules.length) return null
+
+    const list = new net.BlockList()
+
+    for (const rule of rules) {
+      const [, ip, slash] = rule.match(/^(.*?)(?:\/(\d+))?$/)
+      let ipType = net.isIP(ip)
+
+      if (!ipType) {
+        throw new Error('Invalid IP address: ' + ip)
+      }
+
+      ipType = 'ipv' + ipType
+
+      slash
+        ? list.addSubnet(ip, +slash, ipType)
+        : list.addAddress(ip, ipType)
+    }
+
+    return list
+  }
+
+  if (config?.constructor?.name === 'Object') {
+    if (isGlobal) {
+      throw new Error('Expected list config to an array when global')
+    }
+
+    if (mustBeArray) {
+      throw new Error('Expected inner list config to be an array')
+    }
+
+    const allRules = {}
+
+    Object.entries(config).forEach(([key, rules]) => {
+      const result = createList(rules, isGlobal, true)
+
+      if (result) {
+        allRules[key] = result
+      }
+    })
+
+    return Object.entries(allRules).length
+      ? allRules
+      : null
+  }
+
+  throw new Error('Expected list config to be an array or object literal')
 }
 
 async function plugin (fastify, options) {
@@ -45,52 +81,64 @@ async function plugin (fastify, options) {
     throw new Error('Expected options.errorMessage to be a string')
   }
 
-  const allowRules = getRules(options.allowList)
-  const blockRules = getRules(options.blockList)
+  const isGlobal = typeof options.global === 'boolean'
+    ? options.global
+    : true
 
-  if (allowRules.length && blockRules.length) {
-    throw new Error('Cannot specify options.allowList and options.blockList')
-  } else if (allowRules.length) {
-    const allowList = createList(allowRules)
-    fastify.decorate('allowList', allowList)
-  } else if (blockRules.length) {
-    const blockList = createList(blockRules)
-    fastify.decorate('blockList', blockList)
-  } else {
+  const allowList = createList(options.allowList, isGlobal)
+  const blockList = createList(options.blockList, isGlobal)
+
+  if (isGlobal && allowList && blockList) {
+    throw new Error('Cannot specify global options.allowList and options.blockList')
+  }
+
+  if (!allowList && !blockList) {
     throw new Error('Must specify options.allowList or options.blockList')
+  }
+
+  if (allowList) {
+    fastify.decorate('allowList', allowList)
+  }
+
+  if (blockList) {
+    fastify.decorate('blockList', blockList)
+  }
+
+  const createRequestHandler = (listName = '') => {
+    let list
+    let isAllowList
+
+    if (listName) {
+      list = fastify.allowList?.[listName] || fastify.blockList?.[listName]
+
+      if (!list) {
+        throw new Error('Couldn\'t find list: ' + listName)
+      }
+
+      isAllowList = !!fastify.allowList?.[listName]
+    } else {
+      list = fastify.allowList || fastify.blockList
+      isAllowList = !!fastify.allowList
+    }
+
+    return (request, reply, done) => {
+      const ipType = 'ipv' + net.isIP(request.ip)
+      const isMatch = list.check(request.ip, ipType)
+      const allow = (isMatch && isAllowList) || (!isMatch && !isAllowList)
+
+      if (allow) return done()
+
+      reply.code(errorCode)
+      done(new Error(errorMessage))
+    }
   }
 
   const errorCode = options.errorCode || 403
   const errorMessage = options.errorMessage || http.STATUS_CODES[errorCode]
 
-  const checkRequest = (request, reply, done) => {
-    const block = () => {
-      reply.code(errorCode)
-      done(new Error(errorMessage))
-    }
-
-    const ipType = 'ipv' + net.isIP(request.ip)
-
-    if (fastify.allowList) {
-      const allowed = fastify.allowList.check(request.ip, ipType)
-
-      if (!allowed) return block()
-    } else {
-      const blocked = fastify.blockList.check(request.ip, ipType)
-
-      if (blocked) return block()
-    }
-
-    done()
-  }
-
-  const isGlobal = typeof options.global === 'boolean'
-    ? options.global
-    : true
-
   isGlobal
-    ? fastify.addHook('onRequest', checkRequest)
-    : fastify.decorate('checkRequest', checkRequest)
+    ? fastify.addHook('onRequest', createRequestHandler())
+    : fastify.decorate('createNetAclRequestHandler', createRequestHandler)
 }
 
 module.exports = fp(plugin, {

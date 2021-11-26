@@ -1,6 +1,6 @@
 {
   "name": "fastify-net-acl",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Fastify plugin that restricts access according to IP address/subnet allow and block lists.",
   "main": "index.js",
   "engines": {
