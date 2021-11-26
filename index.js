@@ -109,13 +109,20 @@ async function plugin (fastify, options) {
     let isAllowList
 
     if (listName) {
-      list = fastify.allowList?.[listName] || fastify.blockList?.[listName]
-
-      if (!list) {
-        throw new Error('Couldn\'t find list: ' + listName)
+      if (!/^(?:allow|block):\w+$/i.test(listName)) {
+        throw new Error('Invalid list name: ' + listName)
       }
 
-      isAllowList = !!fastify.allowList?.[listName]
+      isAllowList = /^allow/i.test(listName)
+      listName = listName.split(/^(?:allow|block):/i).pop()
+
+      list = isAllowList
+        ? fastify.allowList?.[listName]
+        : fastify.blockList?.[listName]
+
+      if (!list) {
+        throw new Error(`Couldn't find ${isAllowList ? 'allow' : 'block'} list: ${listName}`)
+      }
     } else {
       list = fastify.allowList || fastify.blockList
       isAllowList = !!fastify.allowList

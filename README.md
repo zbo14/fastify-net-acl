@@ -115,12 +115,12 @@ await fastify.register(require('fastify-net-acl'), {
 })
 
 {
-  const onRequest = fastify.createNetAclRequestHandler('foo')
+  const onRequest = fastify.createNetAclRequestHandler('allow:foo')
   fastify.get('/foo', { onRequest }, (req, reply) => {})
 }
 
 {
-  const onRequest = fastify.createNetAclRequestHandler('bar')
+  const onRequest = fastify.createNetAclRequestHandler('block:bar')
   fastify.get('/bar', { onRequest }, (req, reply) => {})
 }
 

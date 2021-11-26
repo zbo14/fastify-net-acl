@@ -391,7 +391,7 @@ t.test('allows IP on 1 route and blocks IP on another', async t => {
   })
 
   {
-    const onRequest = t.context.fastify.createNetAclRequestHandler('foo')
+    const onRequest = t.context.fastify.createNetAclRequestHandler('allow:foo')
 
     t.context.fastify.get('/foo', { onRequest }, (req, reply) => {
       reply.send({})
@@ -399,7 +399,7 @@ t.test('allows IP on 1 route and blocks IP on another', async t => {
   }
 
   {
-    const onRequest = t.context.fastify.createNetAclRequestHandler('bar')
+    const onRequest = t.context.fastify.createNetAclRequestHandler('block:bar')
 
     t.context.fastify.get('/bar', { onRequest }, (req, reply) => {
       reply.send({})
@@ -429,7 +429,7 @@ t.test('allows IP on 1 route and blocks IP on another', async t => {
   }
 })
 
-t.test('throws if it can\'t find list', async t => {
+t.test('throws if listName invalid', async t => {
   await t.context.fastify.register(fastifyNetAcl, {
     allowList: {
       foo: '1.2.3.4'
@@ -439,9 +439,47 @@ t.test('throws if it can\'t find list', async t => {
   })
 
   try {
-    t.context.fastify.createNetAclRequestHandler('bar')
+    t.context.fastify.createNetAclRequestHandler('disallow:foo')
     throw new Error('Should throw')
   } catch ({ message }) {
-    t.equal(message, 'Couldn\'t find list: bar')
+    t.equal(message, 'Invalid list name: disallow:foo')
+  }
+})
+
+t.test('throws if it can\'t find block list', async t => {
+  await t.context.fastify.register(fastifyNetAcl, {
+    allowList: {
+      foo: '1.2.3.4'
+    },
+
+    global: false
+  })
+
+  try {
+    t.context.fastify.createNetAclRequestHandler('block:foo')
+    throw new Error('Should throw')
+  } catch ({ message }) {
+    t.equal(message, 'Couldn\'t find block list: foo')
+  }
+})
+
+t.test('throws if it can\'t find allow list', async t => {
+  await t.context.fastify.register(fastifyNetAcl, {
+    allowList: {
+      foo: '1.2.3.4'
+    },
+
+    blockList: {
+      bar: '2.2.2.2/22'
+    },
+
+    global: false
+  })
+
+  try {
+    t.context.fastify.createNetAclRequestHandler('allow:bar')
+    throw new Error('Should throw')
+  } catch ({ message }) {
+    t.equal(message, 'Couldn\'t find allow list: bar')
   }
 })
