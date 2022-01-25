@@ -135,8 +135,8 @@ This plugin decorates the `fastify` instance with `allowList` and/or `blockList`
 
 The `options` object has the following properties. Either `allowList` xor `blockList` must be specified if `global` is `true`. Both may be specified if `global` is `false` since you may want to use different allow/block lists on different routes.
 
-* `allowList` is an array of IPv4/IPv6 addresses and/or subnets in CIDR format indicating which IPs should be allowed
-* `blockList` is an array of IPv4/IPv6 addresses and/or subnets in CIDR format indicating which IPs should be blocked
+* `allowList` is a string, array of strings, or object with those values- of IPv4/IPv6 addresses and/or subnets in CIDR format indicating which IPs should be allowed
+* `blockList` is a string, array of strings, or object with those values- of IPv4/IPv6 addresses and/or subnets in CIDR format indicating which IPs should be blocked
 * `errorCode` is the HTTP status code when an IP is blocked/not allowed (default: `403`)
 * `errorMessage` is the status message when an IP is blocked/not allowed (default: generic status message for `errorCode`)
 * `global` is a boolean indicating whether the ACL applies globally, i.e. for all routes (default: `true`)
